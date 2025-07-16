@@ -122,34 +122,65 @@ function love.update(dt)
         movimientoSound:setPitch(0.5 + normalizedHeight * 1.5)
         if not movimientoSound:isPlaying() then movimientoSound:play() end
 
-        for _, target in ipairs(targets) do
-            if not target.hit then
-                local dx, dy = math.abs(projectile.x - target.x), math.abs(projectile.y - target.y)
-                if dx < (target.radius + projectile.radius) and dy < (target.radius + projectile.radius) then
-                    target.hit = true
-                    score = score + 1
-                    destroyedCount = destroyedCount + 1
+for _, target in ipairs(targets) do
+    if not target.hit then
+        local dx, dy = math.abs(projectile.x - target.x), math.abs(projectile.y - target.y)
+        if dx < (target.radius + projectile.radius) and dy < (target.radius + projectile.radius) then
+            -- Conservación de cantidad de movimiento
+            local m1 = projectile.mass
+            local m2 = target.mass
 
-                    local speedImpact = math.sqrt(vx^2 + vy^2)
-                    for i = 1, 8 do
-                        local angle = math.rad(math.random(0, 360))
-                        local radius = speedImpact * 0.05 + math.random() * 5
-                        table.insert(flashes, {x = projectile.x, y = projectile.y, alpha = 1, size = 2 + math.random() * 4, dx = math.cos(angle) * radius, dy = math.sin(angle) * radius, color = {1, 1, 0}})
-                    end
+            local vx1 = projectile.vx0
+            local vy1 = projectile.vy0 + gravity * projectile.time
 
-                    local s = explosionSound:clone()
-                    s:setVolume(1)
-                    s:play()
-                    local reverbEcho = applyReverb(explosionSound)
-                    reverbEcho:play()
-                    table.insert(fadingSounds, {sound = s, volume = 1})
-                    table.insert(fadingSounds, {sound = reverbEcho, volume = 0.5})
+            local vx2 = target.vx or 0
+            local vy2 = target.vy or 0
 
-                    resetProjectile()
-                    break
-                end
+            local totalMass = m1 + m2
+            local newVx = (m1 * vx1 + m2 * vx2) / totalMass
+            local newVy = (m1 * vy1 + m2 * vy2) / totalMass
+
+            -- Asignar nuevas velocidades al meteorito
+            target.vx = newVx
+            target.vy = newVy
+
+            -- Incrementar masa y radio del meteorito
+            target.mass = totalMass
+            target.radius = target.radius + projectile.radius * 0.5
+
+            -- Efectos visuales y sonido
+            score = score + 1
+            destroyedCount = destroyedCount + 1
+
+            local speedImpact = math.sqrt(vx1^2 + vy1^2)
+            for i = 1, 8 do
+                local angle = math.rad(math.random(0, 360))
+                local radius = speedImpact * 0.05 + math.random() * 5
+                table.insert(flashes, {
+                    x = projectile.x,
+                    y = projectile.y,
+                    alpha = 1,
+                    size = 2 + math.random() * 4,
+                    dx = math.cos(angle) * radius,
+                    dy = math.sin(angle) * radius,
+                    color = {1, 1, 0}
+                })
             end
+
+            local s = explosionSound:clone()
+            s:setVolume(1)
+            s:play()
+            local reverbEcho = applyReverb(explosionSound)
+            reverbEcho:play()
+            table.insert(fadingSounds, {sound = s, volume = 1})
+            table.insert(fadingSounds, {sound = reverbEcho, volume = 0.5})
+
+            resetProjectile()
+            break
         end
+    end
+end
+       
 
         if projectile.y > 600 then resetProjectile() end
     end
