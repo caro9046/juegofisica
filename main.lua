@@ -116,7 +116,9 @@ function love.load()
 end
 
 function resetProjectile()
-    if movimientoSound:isPlaying() then movimientoSound:stop() end
+    if movimientoSound:isPlaying() then
+        fadeOutSound(movimientoSound, 0.5) -- Fade out 
+    end
     projectile = {x0 = 50, y0 = 500, vx0 = 0, vy0 = 0, time = 0, radius = 10, launched = false, x = 50, y = 500, mass = 1}
 end
 
@@ -357,6 +359,8 @@ function love.keypressed(key)
         projectile.launched = true
         projectile.time = 0
         projectile.x0 = projectile.x projectile.y0 = projectile.y
+	-- Activar sonido de movimiento al lanzar
+   	 fadeInSound(movimientoSound, 0.3, 1)
     elseif key == "r" then
         score = 0 destroyedCount = 0 lives=5 level=1 targetsToFall=5 fallenTargets=0 gameOver = false confetti = {} flashes = {}
         resetProjectile() resetTargets()
