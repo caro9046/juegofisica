@@ -28,9 +28,13 @@ function love.load()
     confetti = {}
     fadingSounds = {}
 
-    ajusteSound = love.audio.newSource("carga.wav", "static")
-    ajusteSound:setLooping(true)
-    ajusteSound:setVolume(0)
+    ajusteSoundAngle = love.audio.newSource("angulo.wav", "static")
+    ajusteSoundAngle:setLooping(true)
+    ajusteSoundAngle:setVolume(0)
+    
+    ajusteSoundSpeed = love.audio.newSource("carga2.wav", "static")
+    ajusteSoundSpeed:setLooping(true)
+    ajusteSoundSpeed:setVolume(0)
 
     movimientoSound = love.audio.newSource("carga.wav", "static")
     movimientoSound:setLooping(true)
@@ -94,6 +98,7 @@ function fadeInSound(sound, duration, targetVolume)
     table.insert(fadingSounds, {sound = sound, volume = sound:getVolume(), fadeTime = duration, targetVolume = targetVolume or 1, mode = "in"})
 end
 
+-- ================= EXPLOSIÓN SIN DESTELLO CENTRAL =================
 function createExplosion(x, y, speedImpact)
     local numParticles = 20 + math.floor(speedImpact / 50)
     for i = 1, numParticles do
@@ -162,21 +167,44 @@ function love.update(dt)
 
     updateFadingSounds(dt)
 
-    local adjusting = false
-    if not projectile.launched then
-        if love.keyboard.isDown("right") then speed = speed + 150 * dt adjusting = true end
-        if love.keyboard.isDown("left") then speed = math.max(speed - 150 * dt, 0) adjusting = true end
-        if love.keyboard.isDown("up") then angle = math.min(angle + 60 * dt, 90) adjusting = true end
-        if love.keyboard.isDown("down") then angle = math.max(angle - 60 * dt, 0) adjusting = true end
-
-        if adjusting then
-            fadeInSound(ajusteSound, 0.3, 1)
-            -- Pitch según ángulo
-            ajusteSound:setPitch(0.8 + (angle / 90) * 0.7)
-        else
-            if ajusteSound:isPlaying() then fadeOutSound(ajusteSound, 0.3) end
-        end
+    local adjustingAngle = false
+local adjustingSpeed = false
+if not projectile.launched then
+    if love.keyboard.isDown("up") then
+        angle = math.min(angle + 60 * dt, 90)
+        adjustingAngle = true
     end
+    if love.keyboard.isDown("down") then
+        angle = math.max(angle - 60 * dt, 0)
+        adjustingAngle = true
+    end
+    if love.keyboard.isDown("right") then
+        speed = speed + 150 * dt
+        adjustingSpeed = true
+    end
+    if love.keyboard.isDown("left") then
+        speed = math.max(speed - 150 * dt, 0)
+        adjustingSpeed = true
+    end
+
+    -- Sonido para ángulo
+    if adjustingAngle then
+        fadeInSound(ajusteSoundAngle, 0.3, 1)
+        local jitter = (math.random() - 0.5) * 0.05
+        ajusteSoundAngle:setPitch(0.5 + (angle / 90) * 1.5 + jitter) -- 2 octavas
+    else
+        if ajusteSoundAngle:isPlaying() then fadeOutSound(ajusteSoundAngle, 0.3) end
+    end
+
+    -- Sonido para velocidad
+    if adjustingSpeed then
+        fadeInSound(ajusteSoundSpeed, 0.3, 1)
+        local jitter = (math.random() - 0.5) * 0.05
+        ajusteSoundSpeed:setPitch(0.5 + (speed / 600) * 1.5 + jitter) -- Normalizado por rango estimado
+    else
+        if ajusteSoundSpeed:isPlaying() then fadeOutSound(ajusteSoundSpeed, 0.3) end
+    end
+end
 
     if projectile.launched then
         projectile.time = projectile.time + dt
