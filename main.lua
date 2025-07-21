@@ -1,4 +1,4 @@
-
+-- ================= VARIABLES GLOBALES =================
 local delayAfterFlashes = 0.5
 local confettiTimer = 0
 local level = 1
@@ -28,13 +28,9 @@ function love.load()
     confetti = {}
     fadingSounds = {}
 
-    ajusteSoundAngle = love.audio.newSource("angulo.wav", "static")
-    ajusteSoundAngle:setLooping(true)
-    ajusteSoundAngle:setVolume(0)
-    
-    ajusteSoundSpeed = love.audio.newSource("carga2.wav", "static")
-    ajusteSoundSpeed:setLooping(true)
-    ajusteSoundSpeed:setVolume(0)
+    ajusteSound = love.audio.newSource("carga.wav", "static")
+    ajusteSound:setLooping(true)
+    ajusteSound:setVolume(0)
 
     movimientoSound = love.audio.newSource("carga.wav", "static")
     movimientoSound:setLooping(true)
@@ -98,6 +94,7 @@ function fadeInSound(sound, duration, targetVolume)
     table.insert(fadingSounds, {sound = sound, volume = sound:getVolume(), fadeTime = duration, targetVolume = targetVolume or 1, mode = "in"})
 end
 
+-- ================= EXPLOSIÓN SIN DESTELLO CENTRAL =================
 function createExplosion(x, y, speedImpact)
     local numParticles = 20 + math.floor(speedImpact / 50)
     for i = 1, numParticles do
@@ -131,7 +128,7 @@ function spawnTarget(xPos)
         x = xPos or math.random(100, 700),
         y = -math.random(50, 150),
         radius = r,
-        vy = 20 + level * 10,  -- más velocidad por nivel, todos igual
+        vy = 20 + level * 10,
         hit = false,
         mass = r / 10,
         vx = 0
@@ -141,7 +138,7 @@ end
 function resetTargets()
     targets = {}
     for i = 1, targetsToFall do
-        local xPos = 200 + (i - 1) * 120 -- distribuye en pantalla
+        local xPos = 200 + (i - 1) * 120
         table.insert(targets, spawnTarget(xPos))
     end
 end
@@ -166,45 +163,21 @@ function love.update(dt)
 
     updateFadingSounds(dt)
 
-    local adjustingAngle = false
-    local adjustingSpeed = false
+    local adjusting = false
+    if not projectile.launched then
+        if love.keyboard.isDown("right") then speed = speed + 150 * dt adjusting = true end
+        if love.keyboard.isDown("left") then speed = math.max(speed - 150 * dt, 0) adjusting = true end
+        if love.keyboard.isDown("up") then angle = math.min(angle + 60 * dt, 90) adjusting = true end
+        if love.keyboard.isDown("down") then angle = math.max(angle - 60 * dt, 0) adjusting = true end
 
-  if not projectile.launched then
-    if love.keyboard.isDown("up") then
-        angle = math.min(angle + 60 * dt, 90)
-        adjustingAngle = true
+        if adjusting then
+            fadeInSound(ajusteSound, 0.3, 1)
+            -- Pitch según ángulo
+            ajusteSound:setPitch(0.8 + (angle / 90) * 0.7)
+        else
+            if ajusteSound:isPlaying() then fadeOutSound(ajusteSound, 0.3) end
+        end
     end
-    if love.keyboard.isDown("down") then
-        angle = math.max(angle - 60 * dt, 0)
-        adjustingAngle = true
-    end
-    if love.keyboard.isDown("right") then
-        speed = speed + 150 * dt
-        adjustingSpeed = true
-    end
-    if love.keyboard.isDown("left") then
-        speed = math.max(speed - 150 * dt, 0)
-        adjustingSpeed = true
-    end
-
-    -- Sonido para ángulo
-    if adjustingAngle then
-        fadeInSound(ajusteSoundAngle, 0.3, 1)
-        local jitter = (math.random() - 0.5) * 0.05
-        ajusteSoundAngle:setPitch(0.5 + (angle / 90) * 1.5 + jitter) -- 2 octavas
-    else
-        if ajusteSoundAngle:isPlaying() then fadeOutSound(ajusteSoundAngle, 0.3) end
-    end
-
-    -- Sonido para velocidad
-    if adjustingSpeed then
-        fadeInSound(ajusteSoundSpeed, 0.3, 1)
-        local jitter = (math.random() - 0.5) * 0.05
-        ajusteSoundSpeed:setPitch(0.5 + (speed / 600) * 1.5 + jitter) -- Normalizado por rango estimado
-    else
-        if ajusteSoundSpeed:isPlaying() then fadeOutSound(ajusteSoundSpeed, 0.3) end
-    end
-end
 
     if projectile.launched then
         projectile.time = projectile.time + dt
@@ -266,15 +239,10 @@ end
 
     for i = #targets, 1, -1 do
         local target = targets[i]
-    
-     -- Si colisionó con la bomba, le aplico gravedad (MRUA)
-        if target.hit then target.vy = target.vy + gravity * dt 
-    end
-     -- Siempre muevo ambos componentes
+        if target.hit then target.vy = target.vy + gravity * dt end
         target.y = target.y + target.vy * dt
         target.x = target.x + (target.vx or 0) * dt
-    
-    -- Si cae en la ciudad, lo elimino y resto vida
+
         if target.y >= 580 then
             lives = lives - 1
             score = math.max(0, score - 1)
@@ -284,51 +252,21 @@ end
         end
     end
 
-  -- Eliminar meteoritos que se fueron fuera de pantalla
-    for i = #targets, 1, -1 do
-     if targets[i].y > 600 or targets[i].x > 800 or targets[i].x < 0 or targets[i].y < -200 then
-    table.remove(targets, i)
-    fallenTargets = fallenTargets + 1
-end
-    end
-  
-  -- Contar meteoritos activos
-local activeTargets = 0
-for _, t in ipairs(targets) do
-    if t.y <= 600 then
-        activeTargets = activeTargets + 1
-    end
-end
-  
-   -- Solo subir de nivel si no hay activos y ya cayeron todos los que debían caer
-if fallenTargets >= targetsToFall and activeTargets == 0 then
-    level = level + 1
-    if level > 5 then
-        gameOver = true
-        win = true
-        table.insert(highscores, score)
-        table.sort(highscores, function(a, b) return a > b end)
-        while #highscores > 5 do table.remove(highscores) end
-        saveHighscores()
-    else
-        targetsToFall = level * 5
-        fallenTargets = 0
-        targets = {}  -- limpiar anteriores
-
-        -- Generar todos juntos para el nuevo nivel
-        for i = 1, targetsToFall do
-            local xPos = 100 + (i - 1) * 120
-            table.insert(targets, spawnTarget(xPos))
-        end
+    local activeTargets = 0
+    for _, t in ipairs(targets) do if t.y <= 600 then activeTargets = activeTargets + 1 end end
+    if fallenTargets >= targetsToFall and activeTargets == 0 then
+        level = level + 1
+        if level > 5 then gameOver = true win = true saveHighscores() else resetTargets() resetProjectile() end
     end
 end
 
 function updateFlashes(dt)
     for i = #flashes, 1, -1 do
         local f = flashes[i]
-        f.alpha = f.alpha - dt * 1.5
-        f.x = f.x + f.dx * dt * 10
-        f.y = f.y + f.dy * dt * 10
+        f.age = f.age + dt
+        f.alpha = 1 - (f.age / f.lifetime)
+        f.x = f.x + f.dx * dt
+        f.y = f.y + f.dy * dt
         if f.alpha <= 0 then table.remove(flashes, i) end
     end
 end
@@ -465,3 +403,4 @@ function loadHighscores()
         end
     end
 end
+
