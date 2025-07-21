@@ -326,10 +326,9 @@ end
 function updateFlashes(dt)
     for i = #flashes, 1, -1 do
         local f = flashes[i]
-        f.age = f.age + dt
-        f.alpha = 1 - (f.age / f.lifetime)
-        f.x = f.x + f.dx * dt
-        f.y = f.y + f.dy * dt
+        f.alpha = f.alpha - dt * 1.5
+        f.x = f.x + f.dx * dt * 10
+        f.y = f.y + f.dy * dt * 10
         if f.alpha <= 0 then table.remove(flashes, i) end
     end
 end
