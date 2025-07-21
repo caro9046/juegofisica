@@ -87,7 +87,6 @@ function love.load()
     movimientoSound = love.audio.newSource("carga.wav", "static")
     movimientoSound:setLooping(true)
     movimientoSound:setVolume(0)
-    movimientoSound:setVolume(0)
 
     explosionSound = love.audio.newSource("explosion.wav", "static")
 
@@ -102,7 +101,6 @@ function love.load()
         echo:setPitch(0.8)
         return echo
     end
-
 
     cityBlocks = {
         {x = 0, y = 580, width = 800, height = 20},
@@ -364,9 +362,9 @@ function love.keypressed(key)
         projectile.launched = true
         projectile.time = 0
         projectile.x0 = projectile.x 
-	projectile.y0 = projectile.y
+	    projectile.y0 = projectile.y
 	-- Activar sonido de movimiento al lanzar
-   	 if movimientoSound:isPlaying() then movimientoSound:stop() end
+   	if movimientoSound:isPlaying() then movimientoSound:stop() end
 	fadeInSound(movimientoSound, 0.3, 1)
     elseif key == "r" then
         score = 0 destroyedCount = 0 lives=5 level=1 targetsToFall=5 fallenTargets=0 gameOver = false confetti = {} flashes = {}
