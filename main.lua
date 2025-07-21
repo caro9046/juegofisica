@@ -98,7 +98,6 @@ function fadeInSound(sound, duration, targetVolume)
     table.insert(fadingSounds, {sound = sound, volume = sound:getVolume(), fadeTime = duration, targetVolume = targetVolume or 1, mode = "in"})
 end
 
--- ================= EXPLOSIÓN SIN DESTELLO CENTRAL =================
 function createExplosion(x, y, speedImpact)
     local numParticles = 20 + math.floor(speedImpact / 50)
     for i = 1, numParticles do
@@ -132,7 +131,7 @@ function spawnTarget(xPos)
         x = xPos or math.random(100, 700),
         y = -math.random(50, 150),
         radius = r,
-        vy = 20 + level * 10,
+        vy = 20 + level * 10,  -- más velocidad por nivel, todos igual
         hit = false,
         mass = r / 10,
         vx = 0
@@ -142,7 +141,7 @@ end
 function resetTargets()
     targets = {}
     for i = 1, targetsToFall do
-        local xPos = 200 + (i - 1) * 120
+        local xPos = 200 + (i - 1) * 120 -- distribuye en pantalla
         table.insert(targets, spawnTarget(xPos))
     end
 end
@@ -168,8 +167,9 @@ function love.update(dt)
     updateFadingSounds(dt)
 
     local adjustingAngle = false
-local adjustingSpeed = false
-if not projectile.launched then
+    local adjustingSpeed = false
+
+  if not projectile.launched then
     if love.keyboard.isDown("up") then
         angle = math.min(angle + 60 * dt, 90)
         adjustingAngle = true
@@ -266,10 +266,15 @@ end
 
     for i = #targets, 1, -1 do
         local target = targets[i]
-        if target.hit then target.vy = target.vy + gravity * dt end
+    
+     -- Si colisionó con la bomba, le aplico gravedad (MRUA)
+        if target.hit then target.vy = target.vy + gravity * dt 
+    end
+     -- Siempre muevo ambos componentes
         target.y = target.y + target.vy * dt
         target.x = target.x + (target.vx or 0) * dt
-
+    
+    -- Si cae en la ciudad, lo elimino y resto vida
         if target.y >= 580 then
             lives = lives - 1
             score = math.max(0, score - 1)
@@ -279,11 +284,42 @@ end
         end
     end
 
-    local activeTargets = 0
-    for _, t in ipairs(targets) do if t.y <= 600 then activeTargets = activeTargets + 1 end end
-    if fallenTargets >= targetsToFall and activeTargets == 0 then
-        level = level + 1
-        if level > 5 then gameOver = true win = true saveHighscores() else resetTargets() resetProjectile() end
+  -- Eliminar meteoritos que se fueron fuera de pantalla
+    for i = #targets, 1, -1 do
+     if targets[i].y > 600 or targets[i].x > 800 or targets[i].x < 0 or targets[i].y < -200 then
+    table.remove(targets, i)
+    fallenTargets = fallenTargets + 1
+end
+    end
+  
+  -- Contar meteoritos activos
+local activeTargets = 0
+for _, t in ipairs(targets) do
+    if t.y <= 600 then
+        activeTargets = activeTargets + 1
+    end
+end
+  
+   -- Solo subir de nivel si no hay activos y ya cayeron todos los que debían caer
+if fallenTargets >= targetsToFall and activeTargets == 0 then
+    level = level + 1
+    if level > 5 then
+        gameOver = true
+        win = true
+        table.insert(highscores, score)
+        table.sort(highscores, function(a, b) return a > b end)
+        while #highscores > 5 do table.remove(highscores) end
+        saveHighscores()
+    else
+        targetsToFall = level * 5
+        fallenTargets = 0
+        targets = {}  -- limpiar anteriores
+
+        -- Generar todos juntos para el nuevo nivel
+        for i = 1, targetsToFall do
+            local xPos = 100 + (i - 1) * 120
+            table.insert(targets, spawnTarget(xPos))
+        end
     end
 end
 
