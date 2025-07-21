@@ -1,15 +1,4 @@
--- Mejoras:
--- 1. Menos meteoritos en nivel 1.
--- 2. Flechas visuales junto a ángulo y velocidad.
--- 3. Detener meteoritos y cursor al finalizar el nivel.
--- 4. Confeti al terminar el juego.
--- Mejoras 2:
--- 1. Flechas visibles como íconos (usamos Unicode).
--- 2. Sonido de disparo al colisionar con meteorito, con pitch según masa.
--- Mejora: Reverb en sonido de explosión + Fade out
--- Agregar música de fondo y mejorar visual de explosiones con destellos
--- Mejorar animación: completar destellos antes de iniciar confeti
-
+-- codigo niveles
 local delayAfterFlashes = 0.5 -- segundos de espera entre fin de destellos e inicio confeti
 local confettiTimer = 0
 local level = 1
@@ -21,6 +10,52 @@ cars = {
   {x=0, y=570, speed=100},
   {x=200, y=590, speed=80},
 }
+-- ================= EFECTOS DE SONIDO =================
+function fadeOutSound(sound, duration)
+    table.insert(fadingSounds, {
+        sound = sound,
+        volume = sound:getVolume(),
+        fadeTime = duration,
+        mode = "out"
+    })
+end
+
+function fadeInSound(sound, duration, targetVolume)
+    if not sound:isPlaying() then
+        sound:setVolume(0)
+        sound:play()
+    end
+    table.insert(fadingSounds, {
+        sound = sound,
+        volume = sound:getVolume(),
+        fadeTime = duration,
+        targetVolume = targetVolume or 1,
+        mode = "in"
+    })
+end
+
+function updateFadingSounds(dt)
+    for i = #fadingSounds, 1, -1 do
+        local fs = fadingSounds[i]
+        if fs.mode == "out" then
+            fs.volume = fs.volume - (dt / fs.fadeTime)
+            if fs.volume <= 0 then
+                fs.sound:stop()
+                table.remove(fadingSounds, i)
+            else
+                fs.sound:setVolume(fs.volume)
+            end
+        elseif fs.mode == "in" then
+            fs.volume = fs.volume + (dt / fs.fadeTime) * (fs.targetVolume - fs.volume)
+            if fs.volume >= fs.targetVolume - 0.01 then
+                fs.sound:setVolume(fs.targetVolume)
+                table.remove(fadingSounds, i)
+            else
+                fs.sound:setVolume(fs.volume)
+            end
+        end
+    end
+end
 
 function love.load()
     love.window.setTitle("Defensa Meteorítica")
@@ -39,12 +74,18 @@ function love.load()
     confetti = {}
     fadingSounds = {}
 
-    -- Usamos carga.wav en vez de ajuste.wav
-    ajusteSound = love.audio.newSource("carga.wav", "static")
-    ajusteSound:setLooping(true)
+  
+    ajusteSoundAngle = love.audio.newSource("angulo.wav", "static")
+    ajusteSoundAngle:setLooping(true)
+    ajusteSoundAngle:setVolume(0)
+  
+    ajusteSoundSpeed = love.audio.newSource("carga2.wav", "static")
+    ajusteSoundSpeed:setLooping(true)
+    ajusteSoundSpeed:setVolume(0)
 
     movimientoSound = love.audio.newSource("carga.wav", "static")
     movimientoSound:setLooping(true)
+    movimientoSound:setVolume(0)
 
     explosionSound = love.audio.newSource("explosion.wav", "static")
 
@@ -59,6 +100,7 @@ function love.load()
         echo:setPitch(0.8)
         return echo
     end
+
 
     cityBlocks = {
         {x = 0, y = 580, width = 800, height = 20},
@@ -121,21 +163,44 @@ end
 
     updateFadingSounds(dt)
 
-    local adjusting = false
-
-    if not projectile.launched then
-        if love.keyboard.isDown("right") then speed = speed + 150 * dt adjusting = true end
-        if love.keyboard.isDown("left") then speed = math.max(speed - 150 * dt, 0) adjusting = true end
-        if love.keyboard.isDown("up") then angle = math.min(angle + 60 * dt, 90) adjusting = true end
-        if love.keyboard.isDown("down") then angle = math.max(angle - 60 * dt, 0) adjusting = true end
-
-        if adjusting then
-            ajusteSound:setPitch(0.5 + (speed / 400) + (angle / 180))
-            if not ajusteSound:isPlaying() then ajusteSound:play() end
-        else
-            if ajusteSound:isPlaying() then ajusteSound:stop() end
-        end
+    local adjustingAngle = false
+local adjustingSpeed = false
+if not projectile.launched then
+    if love.keyboard.isDown("up") then
+        angle = math.min(angle + 60 * dt, 90)
+        adjustingAngle = true
     end
+    if love.keyboard.isDown("down") then
+        angle = math.max(angle - 60 * dt, 0)
+        adjustingAngle = true
+    end
+    if love.keyboard.isDown("right") then
+        speed = speed + 150 * dt
+        adjustingSpeed = true
+    end
+    if love.keyboard.isDown("left") then
+        speed = math.max(speed - 150 * dt, 0)
+        adjustingSpeed = true
+    end
+
+    -- Sonido para ángulo
+    if adjustingAngle then
+        fadeInSound(ajusteSoundAngle, 0.3, 1)
+        local jitter = (math.random() - 0.5) * 0.05
+        ajusteSoundAngle:setPitch(0.5 + (angle / 90) * 1.5 + jitter) -- 2 octavas
+    else
+        if ajusteSoundAngle:isPlaying() then fadeOutSound(ajusteSoundAngle, 0.3) end
+    end
+
+    -- Sonido para velocidad
+    if adjustingSpeed then
+        fadeInSound(ajusteSoundSpeed, 0.3, 1)
+        local jitter = (math.random() - 0.5) * 0.05
+        ajusteSoundSpeed:setPitch(0.5 + (speed / 600) * 1.5 + jitter) -- Normalizado por rango estimado
+    else
+        if ajusteSoundSpeed:isPlaying() then fadeOutSound(ajusteSoundSpeed, 0.3) end
+    end
+end
 
     if projectile.launched then
         projectile.time = projectile.time + dt
@@ -272,6 +337,7 @@ if fallenTargets >= targetsToFall and activeTargets == 0 then
     end
 end
 end
+
 function updateFlashes(dt)
     for i = #flashes, 1, -1 do
         local f = flashes[i]
@@ -282,13 +348,6 @@ function updateFlashes(dt)
     end
 end
 
-function updateFadingSounds(dt)
-    for i = #fadingSounds, 1, -1 do
-        local fs = fadingSounds[i]
-        fs.volume = fs.volume - dt * 0.5
-        if fs.volume <= 0 then fs.sound:stop() table.remove(fadingSounds, i) else fs.sound:setVolume(fs.volume) end
-    end
-end
 
 function love.keypressed(key)
     if key == "space" and not projectile.launched and not gameOver then
@@ -303,6 +362,7 @@ function love.keypressed(key)
         resetProjectile() resetTargets()
     end
 end
+
 
 function love.draw()
     for _, car in ipairs(cars) do
@@ -388,3 +448,11 @@ end
 
 function spawnConfetti() for i = 1, 100 do table.insert(confetti, {x = math.random(0, 800), y = math.random(-100, 0), r = math.random(), g = math.random(), b = math.random(), vy = 50 + math.random() * 100}) end end
 function updateConfetti(dt) for _, c in ipairs(confetti) do c.y = c.y + c.vy * dt end end
+
+
+
+
+
+
+
+
