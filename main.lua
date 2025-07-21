@@ -358,9 +358,11 @@ function love.keypressed(key)
         projectile.vy0 = -speed * math.sin(rad)
         projectile.launched = true
         projectile.time = 0
-        projectile.x0 = projectile.x projectile.y0 = projectile.y
+        projectile.x0 = projectile.x 
+	projectile.y0 = projectile.y
 	-- Activar sonido de movimiento al lanzar
-   	 fadeInSound(movimientoSound, 0.3, 1)
+   	 if movimientoSound:isPlaying() then movimientoSound:stop() end
+	fadeInSound(movimientoSound, 0.3, 1)
     elseif key == "r" then
         score = 0 destroyedCount = 0 lives=5 level=1 targetsToFall=5 fallenTargets=0 gameOver = false confetti = {} flashes = {}
         resetProjectile() resetTargets()
