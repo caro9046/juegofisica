@@ -1,4 +1,4 @@
--- ================= VARIABLES GLOBALES =================
+
 local delayAfterFlashes = 0.5
 local confettiTimer = 0
 local level = 1
@@ -94,7 +94,6 @@ function fadeInSound(sound, duration, targetVolume)
     table.insert(fadingSounds, {sound = sound, volume = sound:getVolume(), fadeTime = duration, targetVolume = targetVolume or 1, mode = "in"})
 end
 
--- ================= EXPLOSIÓN CON DESTELLO =================
 function createExplosion(x, y, speedImpact)
     local numParticles = 20 + math.floor(speedImpact / 50)
     for i = 1, numParticles do
