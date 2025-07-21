@@ -1,5 +1,4 @@
-
-
+-- ================= VARIABLES GLOBALES =================
 local delayAfterFlashes = 0.5
 local confettiTimer = 0
 local level = 1
@@ -95,6 +94,7 @@ function fadeInSound(sound, duration, targetVolume)
     table.insert(fadingSounds, {sound = sound, volume = sound:getVolume(), fadeTime = duration, targetVolume = targetVolume or 1, mode = "in"})
 end
 
+-- ================= EXPLOSIÓN CON DESTELLO =================
 function createExplosion(x, y, speedImpact)
     local numParticles = 20 + math.floor(speedImpact / 50)
     for i = 1, numParticles do
@@ -170,7 +170,13 @@ function love.update(dt)
         if love.keyboard.isDown("up") then angle = math.min(angle + 60 * dt, 90) adjusting = true end
         if love.keyboard.isDown("down") then angle = math.max(angle - 60 * dt, 0) adjusting = true end
 
-        if adjusting then fadeInSound(ajusteSound, 0.3, 1) else if ajusteSound:isPlaying() then fadeOutSound(ajusteSound, 0.3) end end
+        if adjusting then
+            fadeInSound(ajusteSound, 0.3, 1)
+            -- Pitch según ángulo
+            ajusteSound:setPitch(0.8 + (angle / 90) * 0.7)
+        else
+            if ajusteSound:isPlaying() then fadeOutSound(ajusteSound, 0.3) end
+        end
     end
 
     if projectile.launched then
@@ -209,9 +215,9 @@ function love.update(dt)
                     local sizeFactor = math.max(0.2, target.radius / 30)
                     local impactVolume = math.min(1, (speedImpact / 500) * sizeFactor)
                     local impactPitch = 0.8 + (1 - sizeFactor) * 0.8
-
+                    -- Pitch extra según velocidad
                     s:setVolume(impactVolume)
-                    s:setPitch(impactPitch)
+                    s:setPitch(impactPitch + (speedImpact / 1000))
                     s:play()
                     fadeOutSound(s, 1)
 
