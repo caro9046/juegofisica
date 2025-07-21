@@ -1,4 +1,4 @@
--- ================= VARIABLES GLOBALES =================
+
 local delayAfterFlashes = 0.5
 local confettiTimer = 0
 local level = 1
