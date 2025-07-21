@@ -1,50 +1,92 @@
--- Mejoras:
--- 1. Menos meteoritos en nivel 1.
--- 2. Flechas visuales junto a ángulo y velocidad.
--- 3. Detener meteoritos y cursor al finalizar el nivel.
--- 4. Confeti al terminar el juego.
--- Mejoras 2:
--- 1. Flechas visibles como íconos (usamos Unicode).
--- 2. Sonido de disparo al colisionar con meteorito, con pitch según masa.
--- Mejora: Reverb en sonido de explosión + Fade out
--- Agregar música de fondo y mejorar visual de explosiones con destellos
--- Mejorar animación: completar destellos antes de iniciar confeti
+-- ================= EFECTOS DE SONIDO =================
+function fadeOutSound(sound, duration)
+    table.insert(fadingSounds, {
+        sound = sound,
+        volume = sound:getVolume(),
+        fadeTime = duration,
+        mode = "out"
+    })
+end
 
-local delayAfterFlashes = 0.5 -- segundos de espera entre fin de destellos e inicio confeti
-local confettiTimer = 0
-local level = 1
-local lives = 5
-local targetsToFall = 5
-local fallenTargets = 0
-local win = false
-cars = {
-  {x=0, y=570, speed=100},
-  {x=200, y=590, speed=80},
-}
+function fadeInSound(sound, duration, targetVolume)
+    if not sound:isPlaying() then
+        sound:setVolume(0)
+        sound:play()
+    end
+    table.insert(fadingSounds, {
+        sound = sound,
+        volume = sound:getVolume(),
+        fadeTime = duration,
+        targetVolume = targetVolume or 1,
+        mode = "in"
+    })
+end
+
+function updateFadingSounds(dt)
+    for i = #fadingSounds, 1, -1 do
+        local fs = fadingSounds[i]
+        if fs.mode == "out" then
+            fs.volume = fs.volume - (dt / fs.fadeTime)
+            if fs.volume <= 0 then
+                fs.sound:stop()
+                table.remove(fadingSounds, i)
+            else
+                fs.sound:setVolume(fs.volume)
+            end
+        elseif fs.mode == "in" then
+            fs.volume = fs.volume + (dt / fs.fadeTime) * (fs.targetVolume - fs.volume)
+            if fs.volume >= fs.targetVolume - 0.01 then
+                fs.sound:setVolume(fs.targetVolume)
+                table.remove(fadingSounds, i)
+            else
+                fs.sound:setVolume(fs.volume)
+            end
+        end
+    end
+end
 
 function love.load()
     love.window.setTitle("Defensa Meteorítica")
     love.window.setMode(800, 600)
 	loadHighscores()
 
-    gravity = 200
+    gravity = 40
     angle = 45
-    speed = 300
+    speed = 600
 
     score = 0
     gameOver = false
     destroyedCount = 0
 
+    -- codigo niveles
+    delayAfterFlashes = 0.5 -- segundos de espera entre fin de destellos e inicio confeti
+    confettiTimer = 0
+    level = 1
+    lives = 5
+    targetsToFall = 5
+    fallenTargets = 0
+    win = false
+
+    cars = {
+        {x=0, y=570, speed=100},
+        {x=200, y=590, speed=80},
+    }
+
     flashes = {}
     confetti = {}
     fadingSounds = {}
 
-    -- Usamos carga.wav en vez de ajuste.wav
-    ajusteSound = love.audio.newSource("carga.wav", "static")
-    ajusteSound:setLooping(true)
+    ajusteSoundAngle = love.audio.newSource("angulo.wav", "static")
+    ajusteSoundAngle:setLooping(true)
+    ajusteSoundAngle:setVolume(0)
+  
+    ajusteSoundSpeed = love.audio.newSource("carga2.wav", "static")
+    ajusteSoundSpeed:setLooping(true)
+    ajusteSoundSpeed:setVolume(0)
 
     movimientoSound = love.audio.newSource("carga.wav", "static")
     movimientoSound:setLooping(true)
+    movimientoSound:setVolume(0)
 
     explosionSound = love.audio.newSource("explosion.wav", "static")
 
@@ -69,6 +111,10 @@ function love.load()
         {x = 650, y = 560, width = 30, height = 40},
     }
 
+    meteorSpawnTimer = 0
+    meteorSpawnInterval = 5 -- segundos, se reducirá con el nivel
+    spawnedThisLevel = 0
+
     resetProjectile()
     resetTargets()
 end
@@ -84,7 +130,7 @@ function spawnTarget(xPos)
         x = xPos or math.random(100, 700),
         y = -math.random(50, 150),
         radius = r,
-        vy = 20 + level * 10,  -- más velocidad por nivel, todos igual
+        vy = 0,
         hit = false,
         mass = r / 10,
         vx = 0
@@ -93,16 +139,14 @@ end
 
 function resetTargets()
     targets = {}
-    for i = 1, targetsToFall do
-    local xPos = 200 + (i - 1) * 120  -- distribuye en pantalla
-    table.insert(targets, spawnTarget(xPos))
+    spawnedThisLevel = 0
+    meteorSpawnTimer = 0
+    meteorSpawnInterval = math.max(1.5, 6 - level) -- nivel 1: 5s, nivel 2: 4s, ..., mínimo 1.5s
 end
-end
-
 
 function love.update(dt)
     for _, car in ipairs(cars) do
-  car.x = (car.x + car.speed * dt) % (love.graphics.getWidth() + 50)
+    car.x = (car.x + car.speed * dt) % (love.graphics.getWidth() + 50)
 end
 
 	if gameOver then
@@ -121,19 +165,42 @@ end
 
     updateFadingSounds(dt)
 
-    local adjusting = false
-
+    local adjustingAngle = false
+    local adjustingSpeed = false
     if not projectile.launched then
-        if love.keyboard.isDown("right") then speed = speed + 150 * dt adjusting = true end
-        if love.keyboard.isDown("left") then speed = math.max(speed - 150 * dt, 0) adjusting = true end
-        if love.keyboard.isDown("up") then angle = math.min(angle + 60 * dt, 90) adjusting = true end
-        if love.keyboard.isDown("down") then angle = math.max(angle - 60 * dt, 0) adjusting = true end
+        if love.keyboard.isDown("up") then
+            angle = math.min(angle + 60 * dt, 90)
+            adjustingAngle = true
+        end
+        if love.keyboard.isDown("down") then
+            angle = math.max(angle - 60 * dt, 0)
+            adjustingAngle = true
+        end
+        if love.keyboard.isDown("right") then
+            speed = speed + 150 * dt
+            adjustingSpeed = true
+        end
+        if love.keyboard.isDown("left") then
+            speed = math.max(speed - 150 * dt, 0)
+            adjustingSpeed = true
+        end
 
-        if adjusting then
-            ajusteSound:setPitch(0.5 + (speed / 400) + (angle / 180))
-            if not ajusteSound:isPlaying() then ajusteSound:play() end
+        -- Sonido para ángulo
+        if adjustingAngle then
+            fadeInSound(ajusteSoundAngle, 0.3, 1)
+            local jitter = (math.random() - 0.5) * 0.05
+            ajusteSoundAngle:setPitch(0.5 + (angle / 90) * 1.5 + jitter) -- 2 octavas
         else
-            if ajusteSound:isPlaying() then ajusteSound:stop() end
+            if ajusteSoundAngle:isPlaying() then fadeOutSound(ajusteSoundAngle, 0.3) end
+        end
+
+        -- Sonido para velocidad
+        if adjustingSpeed then
+            fadeInSound(ajusteSoundSpeed, 0.3, 1)
+            local jitter = (math.random() - 0.5) * 0.05
+            ajusteSoundSpeed:setPitch(0.5 + (speed / 600) * 1.5 + jitter) -- Normalizado por rango estimado
+        else
+            if ajusteSoundSpeed:isPlaying() then fadeOutSound(ajusteSoundSpeed, 0.3) end
         end
     end
 
@@ -198,80 +265,82 @@ end
         end
 
         if projectile.y > 600 or projectile.x < 0 or projectile.x > 800 then
-        resetProjectile()
-    end
+            resetProjectile()
+        end
     end
 
     updateFlashes(dt)
 
-for i = #targets, 1, -1 do
-    local target = targets[i]
+    for i = #targets, 1, -1 do
+        local target = targets[i]
 
-    -- Si colisionó con la bomba, le aplico gravedad (MRUA)
-    if target.hit then
+        -- Siempre muevo ambos componentes
         target.vy = target.vy + gravity * dt
+        target.y = target.y + target.vy * dt
+        target.x = target.x + (target.vx or 0) * dt
+
+        -- Si cae en la ciudad, lo elimino y resto vida
+        if target.y >= 580 then
+            lives = lives - 1
+            score = math.max(0, score - 1)
+            table.remove(targets, i)
+            fallenTargets = fallenTargets + 1
+
+            if lives <= 0 then
+                gameOver = true
+                win = false
+                table.insert(highscores, score)
+                table.sort(highscores, function(a, b) return a > b end)
+                while #highscores > 5 do table.remove(highscores) end
+                saveHighscores()
+            end
+        end
+    end
+    -- Eliminar meteoritos que se fueron fuera de pantalla
+    for i = #targets, 1, -1 do
+        if targets[i].y > 600 or targets[i].x > 800 or targets[i].x < 0 or targets[i].y < -200 then
+            table.remove(targets, i)
+            fallenTargets = fallenTargets + 1
+        end
     end
 
-    -- Siempre muevo ambos componentes
-    target.y = target.y + target.vy * dt
-    target.x = target.x + (target.vx or 0) * dt
+    -- Contar meteoritos activos
+    local activeTargets = 0
+    for _, t in ipairs(targets) do
+        if t.y <= 600 then
+            activeTargets = activeTargets + 1
+        end
+    end
 
-    -- Si cae en la ciudad, lo elimino y resto vida
-    if target.y >= 580 then
-        lives = lives - 1
-        score = math.max(0, score - 1)
-        table.remove(targets, i)
-        fallenTargets = fallenTargets + 1
+    -- Spawnear meteoritos uno a uno según el intervalo
+    if spawnedThisLevel < targetsToFall then
+        meteorSpawnTimer = meteorSpawnTimer + dt
+        if meteorSpawnTimer >= meteorSpawnInterval then
+            meteorSpawnTimer = 0
+            local xPos = math.random(100, 700)
+            table.insert(targets, spawnTarget(xPos))
+            spawnedThisLevel = spawnedThisLevel + 1
+        end
+    end
 
-        if lives <= 0 then
+    -- Solo subir de nivel si no hay activos y ya cayeron todos los que debían caer
+    if fallenTargets >= targetsToFall and activeTargets == 0 then
+        level = level + 1
+        if level > 5 then
             gameOver = true
-            win = false
+            win = true
             table.insert(highscores, score)
             table.sort(highscores, function(a, b) return a > b end)
             while #highscores > 5 do table.remove(highscores) end
             saveHighscores()
+        else
+            targetsToFall = level * 5
+            fallenTargets = 0
+            resetTargets()
         end
     end
 end
-    -- Eliminar meteoritos que se fueron fuera de pantalla
-    for i = #targets, 1, -1 do
-     if targets[i].y > 600 or targets[i].x > 800 or targets[i].x < 0 or targets[i].y < -200 then
-    table.remove(targets, i)
-    fallenTargets = fallenTargets + 1
-end
-    end
 
-   -- Contar meteoritos activos
-local activeTargets = 0
-for _, t in ipairs(targets) do
-    if t.y <= 600 then
-        activeTargets = activeTargets + 1
-    end
-end
-
--- Solo subir de nivel si no hay activos y ya cayeron todos los que debían caer
-if fallenTargets >= targetsToFall and activeTargets == 0 then
-    level = level + 1
-    if level > 5 then
-        gameOver = true
-        win = true
-        table.insert(highscores, score)
-        table.sort(highscores, function(a, b) return a > b end)
-        while #highscores > 5 do table.remove(highscores) end
-        saveHighscores()
-    else
-        targetsToFall = level * 5
-        fallenTargets = 0
-        targets = {}  -- limpiar anteriores
-
-        -- Generar todos juntos para el nuevo nivel
-        for i = 1, targetsToFall do
-            local xPos = 100 + (i - 1) * 120
-            table.insert(targets, spawnTarget(xPos))
-        end
-    end
-end
-end
 function updateFlashes(dt)
     for i = #flashes, 1, -1 do
         local f = flashes[i]
@@ -282,13 +351,6 @@ function updateFlashes(dt)
     end
 end
 
-function updateFadingSounds(dt)
-    for i = #fadingSounds, 1, -1 do
-        local fs = fadingSounds[i]
-        fs.volume = fs.volume - dt * 0.5
-        if fs.volume <= 0 then fs.sound:stop() table.remove(fadingSounds, i) else fs.sound:setVolume(fs.volume) end
-    end
-end
 
 function love.keypressed(key)
     if key == "space" and not projectile.launched and not gameOver then
@@ -304,11 +366,12 @@ function love.keypressed(key)
     end
 end
 
+
 function love.draw()
     for _, car in ipairs(cars) do
-  love.graphics.setColor(0.8,0,0)
-  love.graphics.rectangle("fill", car.x-25, car.y-10, 50, 20)
-end
+        love.graphics.setColor(0.8,0,0)
+        love.graphics.rectangle("fill", car.x-25, car.y-10, 50, 20)
+    end
 	love.graphics.setColor(1, 1, 1)
     love.graphics.print("Ángulo: " .. math.floor(angle), 10, 10)
     love.graphics.print("Velocidad: " .. math.floor(speed), 10, 30)
