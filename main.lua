@@ -1,4 +1,4 @@
--- Código completo con confeti solo cuando se gana
+
 
 local delayAfterFlashes = 0.5
 local confettiTimer = 0
