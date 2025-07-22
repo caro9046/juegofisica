@@ -56,7 +56,6 @@ function love.load()
 
     score = 0
     gameOver = false
-    destroyedCount = 0
 
     -- codigo niveles
     delayAfterFlashes = 0.5 -- segundos de espera entre fin de destellos e inicio confeti
