@@ -100,11 +100,11 @@ function love.load()
     ajusteSoundAngle:setLooping(true)
     ajusteSoundAngle:setVolume(0)
   
-    ajusteSoundSpeed = love.audio.newSource("carga2.wav", "static")
+    ajusteSoundSpeed = love.audio.newSource("carga.wav", "static")
     ajusteSoundSpeed:setLooping(true)
     ajusteSoundSpeed:setVolume(0)
 
-    movimientoSound = love.audio.newSource("carga.wav", "static")
+    movimientoSound = love.audio.newSource("mov.wav", "static")
     movimientoSound:setLooping(true)
     movimientoSound:setVolume(0)
 
