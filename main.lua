@@ -111,21 +111,21 @@ function love.load()
     confetti = {}
     fadingSounds = {}
 	
-    ajusteSoundAngle = love.audio.newSource("angulo.wav", "static")
+    ajusteSoundAngle = love.audio.newSource("/audio/angulo.wav", "static")
     ajusteSoundAngle:setLooping(true)
     ajusteSoundAngle:setVolume(0)
   
-    ajusteSoundSpeed = love.audio.newSource("carga.wav", "static")
+    ajusteSoundSpeed = love.audio.newSource("/audio/carga.wav", "static")
     ajusteSoundSpeed:setLooping(true)
     ajusteSoundSpeed:setVolume(0)
 
-    movimientoSound = love.audio.newSource("mov.wav", "static")
+    movimientoSound = love.audio.newSource("/audio/mov.wav", "static")
     movimientoSound:setLooping(true)
     movimientoSound:setVolume(0)
 
-    explosionSound = love.audio.newSource("explosion.wav", "static")
+    explosionSound = love.audio.newSource("/audio/explosion.wav", "static")
 
-    bgMusic = love.audio.newSource("pantalla.wav", "stream")
+    bgMusic = love.audio.newSource("/audio/pantalla.wav", "stream")
     bgMusic:setLooping(true)
     bgMusic:setVolume(0.4)
     bgMusic:play()
