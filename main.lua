@@ -409,7 +409,7 @@ end
             while #highscores > 5 do table.remove(highscores) end
             saveHighscores()
         else
-            targetsToFall = level * 2
+            targetsToFall = 5 + (level - 1) * 2
             fallenTargets = 0
             resetTargets()
         end
