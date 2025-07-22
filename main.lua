@@ -1,4 +1,4 @@
--- ================= EFECTOS DE SONIDO =================
+
 function fadeOutSound(sound, duration)
     table.insert(fadingSounds, {
         sound = sound,
