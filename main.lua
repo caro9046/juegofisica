@@ -555,25 +555,9 @@ function drawTrajectory()
     local vx, vy = speed * math.cos(rad), -speed * math.sin(rad)
     local simX, simY, g = projectile.x, projectile.y, gravity
     local points = {}
-
-    local t = 0
-    local maxT = 10 -- seguridad para que no sea infinito
-    while t < maxT do
-        local px = simX + vx * t
-        local py = simY + vy * t + 0.5 * g * t * t
-
-        if px > 800 or py > 600 then
-            break -- si sale de la pantalla, paramos
-        end
-
-        table.insert(points, {px, py})
-        t = t + 0.1
-    end
-
+    for t = 0, 2, 0.1 do table.insert(points, {simX + vx * t, simY + vy * t + 0.5 * g * t * t}) end
     love.graphics.setColor(0, 1, 1)
-    for i = 1, #points - 1 do
-        love.graphics.line(points[i][1], points[i][2], points[i + 1][1], points[i + 1][2])
-    end
+    for i = 1, #points - 1 do love.graphics.line(points[i][1], points[i][2], points[i + 1][1], points[i + 1][2]) end
 end
 
 
