@@ -93,8 +93,11 @@ function love.load()
     lives = 5
     targetsToFall = 5
     fallenTargets = 0
-    win = false
-
+    win = false           
+	showLevelMessage = false           
+	levelMessageTimer = 0              
+	levelMessageDuration = 2  
+	
     maxLevel = 5
     startColor = {0, 0, 0}         -- negro (nivel 1)
     endColor = {0.5, 0.8, 1}       -- celeste claro (nivel 5)
@@ -107,7 +110,7 @@ function love.load()
     flashes = {}
     confetti = {}
     fadingSounds = {}
-
+	
     ajusteSoundAngle = love.audio.newSource("angulo.wav", "static")
     ajusteSoundAngle:setLooping(true)
     ajusteSoundAngle:setVolume(0)
@@ -187,10 +190,16 @@ function resetTargets()
 end
 
 function love.update(dt)
-    for _, car in ipairs(cars) do
+    
+	for _, car in ipairs(cars) do
         car.x = (car.x + car.speed * dt) % (love.graphics.getWidth() + 50)
     end
-
+if showLevelMessage then
+    levelMessageTimer = levelMessageTimer - dt
+    if levelMessageTimer <= 0 then
+        showLevelMessage = false
+    end
+end
 	if gameOver then
         if #flashes > 0 then
             updateFlashes(dt)
@@ -390,6 +399,8 @@ function love.update(dt)
     -- Solo subir de nivel si no hay activos y ya cayeron todos los que debían caer
     if fallenTargets >= targetsToFall and activeTargets == 0 then
         level = level + 1
+		showLevelMessage = true
+		levelMessageTimer = levelMessageDuration
         if level > 5 then
             gameOver = true
             win = true
@@ -398,7 +409,7 @@ function love.update(dt)
             while #highscores > 5 do table.remove(highscores) end
             saveHighscores()
         else
-            targetsToFall = level * 5
+            targetsToFall = level * 2
             fallenTargets = 0
             resetTargets()
         end
@@ -441,6 +452,7 @@ function love.draw()
     local t = (level - 1) / (maxLevel - 1)
     local bg = levelColor(startColor, endColor, t)
     love.graphics.clear(bg[1], bg[2], bg[3])
+	
     -- Dibujar autos
     for _, car in ipairs(cars) do
         love.graphics.setColor(car.color)
@@ -505,13 +517,15 @@ function love.draw()
     end
 
     -- UI
-    love.graphics.setColor(1, 1, 1)
+    love.graphics.setColor(1,1,1)
     love.graphics.print("Ángulo: " .. math.floor(angle), 10, 10)
     love.graphics.print("Velocidad: " .. math.floor(speed), 10, 30)
     love.graphics.print("Puntaje: " .. score, 10, 50)
     love.graphics.print("Nivel: " .. level, 10, 70)
     love.graphics.print("Vidas: " .. lives, 10, 90)
-
+	if showLevelMessage then
+	 love.graphics.printf("¡Nivel " .. level .. "!", 0, 280, 800, "center")
+	end
     if gameOver then
         love.graphics.setColor(1, 1, 0)
         love.graphics.print(win and "¡Ganaste!" or "¡Perdiste!", 320, 300)
