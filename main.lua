@@ -1,5 +1,12 @@
-
 function fadeOutSound(sound, duration)
+    for _, fs in ipairs(fadingSounds) do
+        if fs.sound == sound then
+            fs.mode = "out"
+            fs.fadeTime = duration
+            return
+        end
+    end
+
     table.insert(fadingSounds, {
         sound = sound,
         volume = sound:getVolume(),
@@ -13,6 +20,15 @@ function fadeInSound(sound, duration, targetVolume)
         sound:setVolume(0)
         sound:play()
     end
+    for _, fs in ipairs(fadingSounds) do
+        if fs.sound == sound then
+            fs.mode = "in"
+            fs.fadeTime = duration
+            fs.targetVolume = targetVolume or 1
+            return
+        end
+    end
+
     table.insert(fadingSounds, {
         sound = sound,
         volume = sound:getVolume(),
@@ -25,18 +41,23 @@ end
 function updateFadingSounds(dt)
     for i = #fadingSounds, 1, -1 do
         local fs = fadingSounds[i]
+        local step = dt / fs.fadeTime  -- paso normalizado
+
         if fs.mode == "out" then
-            fs.volume = fs.volume - (dt / fs.fadeTime)
-            if fs.volume <= 0 then
+            fs.volume = fs.volume * math.exp(-step * 5)
+            if fs.volume <= 0.001 then
+                fs.sound:setVolume(0)
                 fs.sound:stop()
                 table.remove(fadingSounds, i)
             else
                 fs.sound:setVolume(fs.volume)
             end
+
         elseif fs.mode == "in" then
-            fs.volume = fs.volume + (dt / fs.fadeTime) * (fs.targetVolume - fs.volume)
-            if fs.volume >= fs.targetVolume - 0.01 then
-                fs.sound:setVolume(fs.targetVolume)
+            fs.volume = fs.volume + step * (fs.targetVolume - fs.volume)
+            if math.abs(fs.volume - fs.targetVolume) < 0.001 then
+                fs.volume = fs.targetVolume
+                fs.sound:setVolume(fs.volume)
                 table.remove(fadingSounds, i)
             else
                 fs.sound:setVolume(fs.volume)
@@ -267,14 +288,25 @@ function love.update(dt)
                             color = {1, 1, 0}
                         })
                     end
-
+                    -- Sonido en colisión proyectil-meteorito Pitch y volumen proporcional a masa y velocidad
                     local s = explosionSound:clone()
                     s:setVolume(1)
+                    -- Calcular magnitud de velocidad de impacto
+                    local speedImpact = math.sqrt(vx1^2 + vy1^2)
+                    -- Calcular pitch de la explosión
+                    local pitchValue = math.max(0.5, math.min(2.0, 1 + (target.mass / 20)))
+                    s:setPitch(pitchValue)
+                    --Calcular volumen proporcional a masa y velocidad
+                    local volumeValue = math.max(0.3, math.min(1.0, (target.mass * speedImpact)/1000))
+                    s:setVolume(volumeValue)
                     s:play()
+
                     local reverbEcho = applyReverb(explosionSound)
+                    reverbEcho: setPitch(pitchValue * 0.8)
                     reverbEcho:play()
-                    table.insert(fadingSounds, {sound = s, volume = 1})
-                    table.insert(fadingSounds, {sound = reverbEcho, volume = 0.5})
+                    table.insert(fadingSounds, {sound = s, volume = volumeValue, fadeTime = 1, mode = "out"})
+                    table.insert(fadingSounds, {sound = reverbEcho, volume = volumeValue * 0.6, fadeTime = 2, mode = "out"})
+
 
                     resetProjectile()
                     break
