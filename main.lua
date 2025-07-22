@@ -1,4 +1,67 @@
-function fadeOutSound(sound, duration)
+
+function love.load()
+    love.window.setTitle("Defensa Meteorítica")
+    love.window.setMode(800, 600)
+	loadHighscores()
+
+    gravity = 40
+    angle = 45
+    speed = 600
+
+    score = 0
+    gameOver = false
+
+    delayAfterFlashes = 0.5 
+    confettiTimer = 0
+    level = 1
+    lives = 5
+    targetsToFall = 5
+    fallenTargets = 0
+    win = false           
+	showLevelMessage = false           
+	levelMessageTimer = 0              
+	levelMessageDuration = 2  
+	
+    maxLevel = 5
+    startColor = {0, 0, 0}         -- negro (nivel 1)
+    endColor = {0.5, 0.8, 1}       -- celeste claro (nivel 5)
+
+    cars = {
+        {x = 0, y = 570, speed = 100, color = {math.random()*0.7+0.3, math.random()*0.7+0.3, math.random()*0.7+0.3}},
+        {x = 200, y = 590, speed = 80, color = {math.random()*0.7+0.3, math.random()*0.7+0.3, math.random()*0.7+0.3}},
+    }
+
+    flashes = {}
+    confetti = {}
+    fadingSounds = {}
+	
+    ajusteSoundAngle = love.audio.newSource("/audio/angulo.wav", "static")
+    ajusteSoundAngle:setLooping(true)
+    ajusteSoundAngle:setVolume(0)
+  
+    ajusteSoundSpeed = love.audio.newSource("/audio/carga.wav", "static")
+    ajusteSoundSpeed:setLooping(true)
+    ajusteSoundSpeed:setVolume(0)
+
+    movimientoSound = love.audio.newSource("/audio/mov.wav", "static")
+    movimientoSound:setLooping(true)
+    movimientoSound:setVolume(0)
+
+    explosionSound = love.audio.newSource("/audio/explosion.wav", "static")
+
+    bgMusic = love.audio.newSource("/audio/pantalla.wav", "stream")
+    bgMusic:setLooping(true)
+    bgMusic:setVolume(0.4)
+    bgMusic:play()
+
+    function applyReverb(sound)
+        local echo = sound:clone()
+        echo:setVolume(0.5)
+        echo:setPitch(0.8)
+        return echo
+    end
+
+	function fadeOutSound(sound, duration)
     for _, fs in ipairs(fadingSounds) do
         if fs.sound == sound then
             fs.mode = "out"
@@ -73,70 +136,7 @@ function levelColor(c1, c2, t)
         c1[3] + (c2[3] - c1[3]) * t
     }
 end
-
-function love.load()
-    love.window.setTitle("Defensa Meteorítica")
-    love.window.setMode(800, 600)
-	loadHighscores()
-
-    gravity = 40
-    angle = 45
-    speed = 600
-
-    score = 0
-    gameOver = false
-
-    -- codigo niveles
-    delayAfterFlashes = 0.5 
-    confettiTimer = 0
-    level = 1
-    lives = 5
-    targetsToFall = 5
-    fallenTargets = 0
-    win = false           
-	showLevelMessage = false           
-	levelMessageTimer = 0              
-	levelMessageDuration = 2  
 	
-    maxLevel = 5
-    startColor = {0, 0, 0}         -- negro (nivel 1)
-    endColor = {0.5, 0.8, 1}       -- celeste claro (nivel 5)
-
-    cars = {
-        {x = 0, y = 570, speed = 100, color = {math.random()*0.7+0.3, math.random()*0.7+0.3, math.random()*0.7+0.3}},
-        {x = 200, y = 590, speed = 80, color = {math.random()*0.7+0.3, math.random()*0.7+0.3, math.random()*0.7+0.3}},
-    }
-
-    flashes = {}
-    confetti = {}
-    fadingSounds = {}
-	
-    ajusteSoundAngle = love.audio.newSource("/audio/angulo.wav", "static")
-    ajusteSoundAngle:setLooping(true)
-    ajusteSoundAngle:setVolume(0)
-  
-    ajusteSoundSpeed = love.audio.newSource("/audio/carga.wav", "static")
-    ajusteSoundSpeed:setLooping(true)
-    ajusteSoundSpeed:setVolume(0)
-
-    movimientoSound = love.audio.newSource("/audio/mov.wav", "static")
-    movimientoSound:setLooping(true)
-    movimientoSound:setVolume(0)
-
-    explosionSound = love.audio.newSource("/audio/explosion.wav", "static")
-
-    bgMusic = love.audio.newSource("/audio/pantalla.wav", "stream")
-    bgMusic:setLooping(true)
-    bgMusic:setVolume(0.4)
-    bgMusic:play()
-
-    function applyReverb(sound)
-        local echo = sound:clone()
-        echo:setVolume(0.5)
-        echo:setPitch(0.8)
-        return echo
-    end
-
     cityBlocks = {
         {x = 0, y = 580, width = 800, height = 20},
         {x = 100, y = 560, width = 40, height = 40},
