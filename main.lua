@@ -66,6 +66,14 @@ function updateFadingSounds(dt)
     end
 end
 
+function levelColor(c1, c2, t)
+    return {
+        c1[1] + (c2[1] - c1[1]) * t,
+        c1[2] + (c2[2] - c1[2]) * t,
+        c1[3] + (c2[3] - c1[3]) * t
+    }
+end
+
 function love.load()
     love.window.setTitle("Defensa Meteorítica")
     love.window.setMode(800, 600)
@@ -87,9 +95,13 @@ function love.load()
     fallenTargets = 0
     win = false
 
+    maxLevel = 5
+    startColor = {0, 0, 0}         -- negro (nivel 1)
+    endColor = {0.5, 0.8, 1}       -- celeste claro (nivel 5)
+
     cars = {
-        {x=0, y=570, speed=100},
-        {x=200, y=590, speed=80},
+        {x = 0, y = 570, speed = 100, color = {math.random()*0.7+0.3, math.random()*0.7+0.3, math.random()*0.7+0.3}},
+        {x = 200, y = 590, speed = 80, color = {math.random()*0.7+0.3, math.random()*0.7+0.3, math.random()*0.7+0.3}},
     }
 
     flashes = {}
@@ -162,7 +174,8 @@ function spawnTarget(xPos)
         vy = 0,
         hit = false,
         mass = r / 10,
-        vx = 0
+        vx = 0,
+        color = {0.6, 0.6, 0.6}
     }
 end
 
@@ -271,6 +284,7 @@ function love.update(dt)
                     target.mass = totalMass
                     target.radius = target.radius + projectile.radius * 0.5
 					target.hit = true
+                    target.color = {0.8, 0.3, 0.1} -- cambia a naranja/rojo cuando impacta
 
                     score = score + 1
 
@@ -423,70 +437,119 @@ end
 
 
 function love.draw()
+    
+    local t = (level - 1) / (maxLevel - 1)
+    local bg = levelColor(startColor, endColor, t)
+    love.graphics.clear(bg[1], bg[2], bg[3])
+    -- Dibujar autos
     for _, car in ipairs(cars) do
-        love.graphics.setColor(0.8,0,0)
-        love.graphics.rectangle("fill", car.x-25, car.y-10, 50, 20)
-    end
-	love.graphics.setColor(1, 1, 1)
-    love.graphics.print("Ángulo: " .. math.floor(angle), 10, 10)
-    love.graphics.print("Velocidad: " .. math.floor(speed), 10, 30)
-    love.graphics.print("Puntaje: " .. score, 10, 50)
-	love.graphics.print("Nivel: " .. level, 10, 70)
-    love.graphics.print("Vidas: " .. lives, 10, 90)
-    if gameOver then
-    love.graphics.setColor(1, 1, 0)
-    if win then
-        love.graphics.print("¡Ganaste el juego!", 300, 300)
-    else
-        love.graphics.print("¡Perdiste!", 300, 300)
+        love.graphics.setColor(car.color)
+        love.graphics.rectangle("fill", car.x - 25, car.y - 15, 50, 25)
+        love.graphics.setColor(0.7, 0.7, 0.7)
+        love.graphics.rectangle("fill", car.x - 15, car.y - 15, 30, 10)
+        love.graphics.setColor(0, 0, 0)
+        love.graphics.circle("fill", car.x - 15, car.y + 10, 6)
+        love.graphics.circle("fill", car.x + 15, car.y + 10, 6)
     end
 
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.print("Top 5", 300, 330)
-    for i, s in ipairs(highscores) do
-        love.graphics.print(i .. ". " .. s, 300, 350 + i * 20)
-    end
-end
-for _, b in ipairs(cityBlocks) do
-    -- Color base del edificio
-    love.graphics.setColor(0.2, 0.2, 0.2)
-    love.graphics.rectangle("fill", b.x, b.y, b.width, b.height)
-
-    -- Parámetros de las ventanas
-    local winW, winH = 6, 8
-    local padX, padY = 4, 4
-
-    -- Color de las ventanas (amarillo claro)
-    love.graphics.setColor(0.9, 0.9, 0.5)
-    for wx = b.x + padX, b.x + b.width - padX - winW, winW + padY do
-        for wy = b.y + padY, b.y + b.height - padY - winH, winH + padY do
-            love.graphics.rectangle("fill", wx, wy, winW, winH)
+    -- Dibujar edificios
+    for _, b in ipairs(cityBlocks) do
+        love.graphics.setColor(0.2, 0.2, 0.2)
+        love.graphics.rectangle("fill", b.x, b.y, b.width, b.height)
+        love.graphics.setColor(0.9, 0.9, 0.5)
+        for wx = b.x + 4, b.x + b.width - 10, 10 do
+            for wy = b.y + 4, b.y + b.height - 12, 12 do
+                love.graphics.rectangle("fill", wx, wy, 6, 8)
+            end
         end
     end
-end
+
+    -- Dibujar trayectoria si no lanzaste y no hay game over
+    if not projectile.launched and not gameOver then
+        drawTrajectory()
+    end
+
+    -- Dibujar cañón
+    local baseX, baseY = 50, 520
+    love.graphics.setColor(0.2, 0.2, 0.2)
+    love.graphics.rectangle("fill", baseX - 30, baseY, 60, 40)
+    love.graphics.setColor(0.4, 0.4, 0.4)
+    love.graphics.rectangle("fill", baseX - 20, baseY - 30, 40, 30)
+    love.graphics.setColor(0.3, 0.3, 0.3)
+    love.graphics.circle("fill", baseX, baseY + 20, 15)
+
+    -- Dibujar proyectil
+    love.graphics.setColor(0.8, 0, 0.6)
+    if not projectile.launched then
+        love.graphics.circle("fill", baseX, baseY - 15, projectile.radius)
+    else
+        love.graphics.circle("fill", projectile.x, projectile.y, projectile.radius)
+    end
+
+    -- Dibujar meteoritos
+    for _, target in ipairs(targets) do
+        love.graphics.setColor(target.color)
+        love.graphics.circle("fill", target.x, target.y, target.radius)
+    end
+
+    -- Dibujar flashes
     for _, f in ipairs(flashes) do
         love.graphics.setColor(f.color[1], f.color[2], f.color[3], f.alpha)
         love.graphics.rectangle("fill", f.x, f.y, f.size, f.size)
     end
 
-    love.graphics.setColor(1, 0.4, 0) if not gameOver then love.graphics.circle("fill", projectile.x, projectile.y, projectile.radius) end
+    -- Dibujar confeti si ganaste
+    for _, c in ipairs(confetti) do
+        love.graphics.setColor(c.r, c.g, c.b)
+        love.graphics.rectangle("fill", c.x, c.y, 4, 4)
+    end
 
-    for _, target in ipairs(targets) do if  not gameOver then love.graphics.setColor(0.6, 0.6, 0.6) love.graphics.circle("fill", target.x, target.y, target.radius) end end
+    -- UI
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.print("Ángulo: " .. math.floor(angle), 10, 10)
+    love.graphics.print("Velocidad: " .. math.floor(speed), 10, 30)
+    love.graphics.print("Puntaje: " .. score, 10, 50)
+    love.graphics.print("Nivel: " .. level, 10, 70)
+    love.graphics.print("Vidas: " .. lives, 10, 90)
 
-    for _, c in ipairs(confetti) do love.graphics.setColor(c.r, c.g, c.b) love.graphics.rectangle("fill", c.x, c.y, 4, 4) end
-
-    if not projectile.launched and not gameOver then drawTrajectory() end
+    if gameOver then
+        love.graphics.setColor(1, 1, 0)
+        love.graphics.print(win and "¡Ganaste!" or "¡Perdiste!", 320, 300)
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.print("Top 5", 350, 330)
+        for i, s in ipairs(highscores) do
+            love.graphics.print(i .. ". " .. s, 350, 350 + i * 20)
+        end
+    end
 end
+
 
 function drawTrajectory()
     local rad = math.rad(angle)
     local vx, vy = speed * math.cos(rad), -speed * math.sin(rad)
     local simX, simY, g = projectile.x, projectile.y, gravity
     local points = {}
-    for t = 0, 2, 0.1 do table.insert(points, {simX + vx * t, simY + vy * t + 0.5 * g * t * t}) end
+
+    local t = 0
+    local maxT = 10 -- seguridad para que no sea infinito
+    while t < maxT do
+        local px = simX + vx * t
+        local py = simY + vy * t + 0.5 * g * t * t
+
+        if px > 800 or py > 600 then
+            break -- si sale de la pantalla, paramos
+        end
+
+        table.insert(points, {px, py})
+        t = t + 0.1
+    end
+
     love.graphics.setColor(0, 1, 1)
-    for i = 1, #points - 1 do love.graphics.line(points[i][1], points[i][2], points[i + 1][1], points[i + 1][2]) end
+    for i = 1, #points - 1 do
+        love.graphics.line(points[i][1], points[i][2], points[i + 1][1], points[i + 1][2])
+    end
 end
+
 
 
 function saveHighscores()
