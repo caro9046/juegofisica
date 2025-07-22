@@ -1,23 +1,28 @@
 
+-- Funcion encargada de cargar variables del motor o propias previo al inicio del juego
 function love.load()
     love.window.setTitle("Defensa Meteorítica")
     love.window.setMode(800, 600)
 	loadHighscores()
 
-    gravity = 40
-    angle = 45
-    speed = 600
+    -- Variables fisicas
+    gravity = 40 -- Aceleración del mundo
+    angle = 45 -- Ángulo por defecto para el proyectil
+    speed = 600 -- Velocidad por defecto para el proyectil
 
+    -- Variables de niveles
     score = 0
     gameOver = false
-
-    delayAfterFlashes = 0.5 
-    confettiTimer = 0
     level = 1
     lives = 5
     targetsToFall = 5
     fallenTargets = 0
-    win = false           
+    win = false
+    
+    
+    -- Efectos visuales
+    delayAfterFlashes = 0.5 
+    confettiTimer = 0
 	showLevelMessage = false           
 	levelMessageTimer = 0              
 	levelMessageDuration = 2  
@@ -33,6 +38,8 @@ function love.load()
 
     flashes = {}
     confetti = {}
+    
+    -- Efectos sonoros
     fadingSounds = {}
 	
     ajusteSoundAngle = love.audio.newSource("/audio/angulo.wav", "static")
@@ -189,6 +196,9 @@ function resetTargets()
     meteorSpawnInterval = math.max(1.5, 6 - level) -- nivel 1: 5s, nivel 2: 4s, ..., mínimo 1.5s
 end
 
+-- Función que se encarga de hacer pasar el tiempo
+-- Nos permite actualizar los datos segun una variación de tiempo entre frames
+-- Ésto permite dibujar luego cada frame con los datos actualizados
 function love.update(dt)
     
 	for _, car in ipairs(cars) do
@@ -255,6 +265,7 @@ end
         end
     end
 
+    -- Manejo de posiciones y choques luego de se lanzó el proyectil
     if projectile.launched then
         projectile.time = projectile.time + dt
         projectile.x = projectile.x0 + projectile.vx0 * projectile.time
@@ -267,8 +278,8 @@ end
         if not movimientoSound:isPlaying() then movimientoSound:play() end
 
         for _, target in ipairs(targets) do
-            if not target.hit then
-                local dx, dy = math.abs(projectile.x - target.x), math.abs(projectile.y - target.y)
+            if not target.hit then -- Chequeo de impacto previo
+                local dx, dy = math.abs(projectile.x - target.x), math.abs(projectile.y - target.y) -- Chequeo de impacto proyectil-meteorito
                 if dx < (target.radius + projectile.radius) and dy < (target.radius + projectile.radius) then
                     -- Cantidad de movimiento
                     local m1 = projectile.mass
@@ -352,7 +363,7 @@ end
         target.y = target.y0 + target.vy0 * target.time + 0.5 * gravity * target.time^2
         target.x = target.x0 + target.vx0 * target.time
 
-        -- Si cae en la ciudad, lo elimino y resto vida
+        -- Si cae en la ciudad, se elimina y resta vida
         if target.y >= 580 then
             lives = lives - 1
             score = math.max(0, score - 1)
@@ -369,6 +380,7 @@ end
             end
         end
     end
+
     -- Eliminar meteoritos que se fueron fuera de pantalla
     for i = #targets, 1, -1 do
         if targets[i].y > 600 or targets[i].x > 800 or targets[i].x < 0 or targets[i].y < -200 then
@@ -416,6 +428,7 @@ end
     end
 end
 
+-- Manipulacion de efectos visuales
 function updateFlashes(dt)
     for i = #flashes, 1, -1 do
         local f = flashes[i]
@@ -426,7 +439,7 @@ function updateFlashes(dt)
     end
 end
 
-
+-- Escucha de inputs
 function love.keypressed(key)
     if key == "space" and not projectile.launched and not gameOver then
         local rad = math.rad(angle)
@@ -445,8 +458,7 @@ function love.keypressed(key)
     end
 end
 
-
-
+-- Funcion requqerida para dibujar en pantalla
 function love.draw()
     
     local t = (level - 1) / (maxLevel - 1)
@@ -537,7 +549,7 @@ function love.draw()
     end
 end
 
-
+-- Linea de la trayectoria
 function drawTrajectory()
     local rad = math.rad(angle)
     local vx, vy = speed * math.cos(rad), -speed * math.sin(rad)
