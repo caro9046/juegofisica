@@ -128,9 +128,16 @@ end
 
 function spawnTarget(xPos)
     local r = 10 + math.random() * 20
+    local initialY = -math.random(50, 150)
+    local initialX = xPos or math.random(100, 700)
     return {
-        x = xPos or math.random(100, 700),
-        y = -math.random(50, 150),
+        x = initialX,
+        x0 = initialX,
+        vx0 = 0,
+        y = initialY,      
+        y0 = initialY,     
+        vy0 = 0,           
+        time = 0,          
         radius = r,
         vy = 0,
         hit = false,
@@ -148,8 +155,8 @@ end
 
 function love.update(dt)
     for _, car in ipairs(cars) do
-    car.x = (car.x + car.speed * dt) % (love.graphics.getWidth() + 50)
-end
+        car.x = (car.x + car.speed * dt) % (love.graphics.getWidth() + 50)
+    end
 
 	if gameOver then
         if #flashes > 0 then
@@ -221,21 +228,31 @@ end
             if not target.hit then
                 local dx, dy = math.abs(projectile.x - target.x), math.abs(projectile.y - target.y)
                 if dx < (target.radius + projectile.radius) and dy < (target.radius + projectile.radius) then
+                    -- Cantidad de movimiento
                     local m1 = projectile.mass
                     local m2 = target.mass
+                    
                     local vx1 = projectile.vx0
                     local vy1 = projectile.vy0 + gravity * projectile.time
-                    local vx2 = target.vx or 0
-                    local vy2 = target.vy or 0
+                    
+                    local vx2 = target.vx0
+                    local vy2 = target.vy0 + gravity * target.time
+                    
                     local totalMass = m1 + m2
+                    
                     target.vx = (m1 * vx1 + m2 * vx2) / totalMass
                     target.vy = (m1 * vy1 + m2 * vy2) / totalMass
+
+                    target.vx0 = target.vx
+                    target.vy0 = target.vy
+                    target.x0 = target.x
+                    target.y0 = target.y
+                    target.time = 0
                     target.mass = totalMass
                     target.radius = target.radius + projectile.radius * 0.5
-                    score = score + 1
-                    destroyedCount = destroyedCount + 1
-                    fallenTargets = fallenTargets + 1
 					target.hit = true
+
+                    score = score + 1
 
                     local speedImpact = math.sqrt(vx1^2 + vy1^2)
                     for i = 1, 8 do
@@ -276,10 +293,10 @@ end
     for i = #targets, 1, -1 do
         local target = targets[i]
 
-        -- Siempre muevo ambos componentes
-        target.vy = target.vy + gravity * dt
-        target.y = target.y + target.vy * dt
-        target.x = target.x + (target.vx or 0) * dt
+        -- Movimiento de meteoritos
+        target.time = target.time + dt
+        target.y = target.y0 + target.vy0 * target.time + 0.5 * gravity * target.time^2
+        target.x = target.x0 + target.vx0 * target.time
 
         -- Si cae en la ciudad, lo elimino y resto vida
         if target.y >= 580 then
@@ -367,7 +384,7 @@ function love.keypressed(key)
    	if movimientoSound:isPlaying() then movimientoSound:stop() end
 	fadeInSound(movimientoSound, 0.3, 1)
     elseif key == "r" then
-        score = 0 destroyedCount = 0 lives=5 level=1 targetsToFall=5 fallenTargets=0 gameOver = false confetti = {} flashes = {}
+        score = 0 lives=5 level=1 targetsToFall=5 fallenTargets=0 gameOver = false confetti = {} flashes = {}
         resetProjectile() resetTargets()
     end
 end
