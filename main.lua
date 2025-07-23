@@ -265,7 +265,8 @@ end
         end
     end
 
-    -- Manejo de posiciones y choques luego de se lanzó el proyectil
+    -- Actualización de posición luego de que se lanzó el proyectil
+    -- Deteccion de choque y cálculo de velocidad de salida
     if projectile.launched then
         projectile.time = projectile.time + dt
         projectile.x = projectile.x0 + projectile.vx0 * projectile.time
